@@ -9,6 +9,7 @@ import sys
 import webbrowser as wb
 from functools import partial
 
+
 try:
     from PyQt5.QtGui import *
     from PyQt5.QtCore import *
@@ -46,6 +47,7 @@ from libs.create_ml_io import CreateMLReader
 from libs.create_ml_io import JSON_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
+from libs.coco_format import fromVOCtoCOCO
 
 __appname__ = 'labelImg'
 
@@ -239,6 +241,8 @@ class MainWindow(QMainWindow, WindowMixin):
         save = action(get_str('save'), self.save_file,
                       'Ctrl+S', 'save', get_str('saveDetail'), enabled=False)
 
+        voc_to_coco_action = action('Pascal VOC to COCO', self.VOCtoCOCO, 'Ctrl+Shift+M', 'VOCtoCOCO',  'Convert multiple Pascal VOC annotations to one COCO format annotation file')
+
         def get_format_meta(format):
             """
             returns a tuple containing (title, icon_name) of the selected format
@@ -380,6 +384,7 @@ class MainWindow(QMainWindow, WindowMixin):
             file=self.menu(get_str('menu_file')),
             edit=self.menu(get_str('menu_edit')),
             view=self.menu(get_str('menu_view')),
+            coco_format=self.menu('Convert to COCO'),
             help=self.menu(get_str('menu_help')),
             recentFiles=QMenu(get_str('menu_openRecent')),
             labelList=label_menu)
@@ -412,6 +417,8 @@ class MainWindow(QMainWindow, WindowMixin):
             hide_all, show_all, None,
             zoom_in, zoom_out, zoom_org, None,
             fit_window, fit_width))
+
+        add_actions(self.menus.coco_format, (voc_to_coco_action, None))
 
         self.menus.file.aboutToShow.connect(self.update_file_menu)
 
@@ -1441,6 +1448,27 @@ class MainWindow(QMainWindow, WindowMixin):
             self.set_clean()
             self.statusBar().showMessage('Saved to  %s' % annotation_file_path)
             self.statusBar().show()
+
+    def VOCtoCOCO(self, _value=False, dir_path=None, silent=False):
+        # TODO
+        if not self.may_continue():
+            return
+
+        default_open_dir_path = dir_path if dir_path else '.'
+        if self.last_open_dir and os.path.exists(self.last_open_dir):
+            default_open_dir_path = self.last_open_dir
+        else:
+            default_open_dir_path = os.path.dirname(self.file_path) if self.file_path else '.'
+        if silent != True:
+            target_dir_path = ustr(QFileDialog.getExistingDirectory(self,
+                                                                    '%s - Open CreateML Annotations Directory' % __appname__, default_open_dir_path,
+                                                                    QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks))
+        else:
+            target_dir_path = ustr(default_open_dir_path)
+        self.last_open_dir = target_dir_path
+        #print(target_dir_path)
+        fromVOCtoCOCO(target_dir_path)
+        
 
     def close_file(self, _value=False):
         if not self.may_continue():
